@@ -99,7 +99,7 @@ def run_checker():
             last_dates = current_dates
 
         # המתנה רנדומלית בין 2 ל־4 דקות
-        wait_time = random.randint(1, 15)
+        wait_time = random.randint(120, 240)
         logging.info(f"המתנה {wait_time} שניות לסיבוב הבא...")
         time.sleep(wait_time)
 
