@@ -1,8 +1,9 @@
-
 import time
 import random
 import logging
 import requests
+import json
+import os
 
 # ----------------
 # פרטי טלגרם (קשיחים בקוד כמו שביקשת)
@@ -15,6 +16,26 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s"
 )
+
+# ----------------
+# קובץ סטייט
+STATE_FILE = "state.json"
+
+def load_state():
+    if os.path.exists(STATE_FILE):
+        try:
+            with open(STATE_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            logging.error(f"שגיאה בקריאת state.json: {e}")
+    return {}
+
+def save_state(state):
+    try:
+        with open(STATE_FILE, "w", encoding="utf-8") as f:
+            json.dump(state, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        logging.error(f"שגיאה בכתיבה ל-state.json: {e}")
 
 # ----------------
 # שליחת הודעה לטלגרם
@@ -67,39 +88,47 @@ CITY_MAPPING = {
 
 # ----------------
 # עיבוד נתונים
-def process_new_dates(data, last_dates):
+def process_new_data(current_data, last_data):
     messages = []
-    current_dates = set(data.keys())
-    new_dates = current_dates - last_dates
 
-    for date in new_dates:
-        cities = [CITY_MAPPING.get(c, f"עיר לא ידועה ({c})") for c in data[date]]
-        city_names = ", ".join(cities)
-        messages.append(f"📢 נוסף מבחן חדש ב-{city_names}, בתאריך {date}")
+    for date, cities in current_data.items():
+        old_cities = set(last_data.get(date, []))
+        new_cities = set(cities) - old_cities
 
-    return messages, current_dates
+        if date not in last_data:
+            # תאריך חדש לגמרי
+            city_names = ", ".join(CITY_MAPPING.get(c, f"עיר לא ידועה ({c})") for c in cities)
+            messages.append(f"📢 נוסף מבחן חדש ב-{city_names}, בתאריך {date}")
+        elif new_cities:
+            # תאריך קיים אבל נוספו בו ערים חדשות
+            city_names = ", ".join(CITY_MAPPING.get(c, f"עיר לא ידועה ({c})") for c in new_cities)
+            messages.append(f"📢 נוספו ערים חדשות למבחן בתאריך {date}: {city_names}")
+
+    return messages
 
 # ----------------
 # לולאת הבדיקה
 def run_checker():
-    last_dates = set()
+    last_data = load_state()
     logging.info("הבוט התחיל לעבוד")
 
     while True:
-        data = fetch_dates()
-        if not data:
+        current_data = fetch_dates()
+        if not current_data:
             logging.warning("לא התקבלו נתונים")
         else:
-            messages, current_dates = process_new_dates(data, last_dates)
+            messages = process_new_data(current_data, last_data)
 
             for msg in messages:
                 logging.info(f"שולח הודעה: {msg}")
                 send_telegram_message(msg)
 
-            last_dates = current_dates
+            if current_data != last_data:
+                save_state(current_data)
+                last_data = current_data
 
         # המתנה רנדומלית בין 2 ל־4 דקות
-        wait_time = random.randint(15, 60)
+        wait_time = random.randint(120, 240)
         logging.info(f"המתנה {wait_time} שניות לסיבוב הבא...")
         time.sleep(wait_time)
 
