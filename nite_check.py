@@ -4,11 +4,18 @@ import logging
 import requests
 import json
 import os
+from dotenv import load_dotenv
+
+# טוען משתני סביבה מקובץ .env
+load_dotenv()
 
 # ----------------
-# פרטי טלגרם (קשיחים בקוד כמו שביקשת)
-TELEGRAM_TOKEN = "token"
-CHAT_ID = "1152610979"
+# פרטי טלגרם (קריאה ממשתני סביבה)
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
+
+if not TELEGRAM_TOKEN or not CHAT_ID:
+    raise ValueError("Missing TELEGRAM_TOKEN or CHAT_ID environment variables")
 
 # ----------------
 # לוגים
@@ -69,7 +76,7 @@ def fetch_dates():
                           "Chrome/139.0.0.0 Safari/537.36"
         }
 
-        resp = session.get(api_url, headers=headers, timeout=10)
+        resp = session.get(api_url, headers=headers, timeout=10, verify= False)
         resp.raise_for_status()
         return resp.json()
 
