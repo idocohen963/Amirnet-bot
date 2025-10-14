@@ -14,6 +14,8 @@ Functions:
     - get_current_exams: Fetches all currently active exams.
     - add_exam: Adds a new exam and logs the event.
     - remove_exam: Removes an exam and logs the event.
+    - add_user: Adds a new user to the users table.
+    - update_user_cities: Updates the cities a user is subscribed to.
 
 """
 
@@ -57,6 +59,17 @@ def init_db():
                 city_id INTEGER NOT NULL,
                 event_type TEXT NOT NULL,  -- 'CREATED' or 'DELETED'
                 event_timestamp TIMESTAMP NOT NULL
+            )
+        """)
+
+        # Table 3: users
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                user_id INTEGER PRIMARY KEY,
+                tel_aviv INTEGER DEFAULT 0,
+                beer_sheva INTEGER DEFAULT 0,
+                jerusalem INTEGER DEFAULT 0,
+                haifa INTEGER DEFAULT 0
             )
         """)
         conn.commit()
@@ -110,5 +123,39 @@ def remove_exam(date: str, city_id: int):
             """INSERT INTO exam_log (exam_date, city_id, event_type, event_timestamp)
                VALUES (?, ?, 'DELETED', ?)""",
             (date, city_id, datetime.now())
+        )
+        conn.commit()
+
+# Adds a new user to the users table.
+def add_user(user_id: int):
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO users (user_id)
+            VALUES (?)
+            """,
+            (user_id,)
+        )
+        conn.commit()
+
+# Updates the cities a user is subscribed to.
+def update_user_cities(user_id: int, cities: list[str]):
+    city_columns = {
+        "תל אביב": "tel_aviv",
+        "באר שבע": "beer_sheva",
+        "ירושלים": "jerusalem",
+        "חיפה": "haifa"
+    }
+
+    updates = {column: (1 if city in cities else 0) for city, column in city_columns.items()}
+
+    with get_connection() as conn:
+        conn.execute(
+            f"""
+            UPDATE users
+            SET {', '.join(f'{col} = ?' for col in updates.keys())}
+            WHERE user_id = ?
+            """,
+            (*updates.values(), user_id)
         )
         conn.commit()
