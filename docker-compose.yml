@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  nite-checker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nite_checker_bot
+    restart: unless-stopped
+    
+    # Environment variables (load from .env file)
+    env_file:
+      - .env
+    
+    # Persistent volume for SQLite database
+    volumes:
+      - ./data:/app/data
+      - ./exams_data.db:/app/exams_data.db
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Network mode for cloud deployment
+    network_mode: bridge
+    
+    # Health check (optional - checks if process is running)
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "python3"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

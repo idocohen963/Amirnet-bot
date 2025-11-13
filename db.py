@@ -1,44 +1,72 @@
 """
-This module handles all database operations for managing exam schedules.
-It provides utility functions to initialize the database, fetch current exams,
-add new exams, and remove exams while maintaining a log of changes.
+Database layer for NITE exam checker bot.
 
-Modules:
-    - sqlite3: For database operations.
-    - logging: For logging messages.
-    - datetime: To handle timestamps.
+This module handles all SQLite database operations for managing exam schedules,
+user subscriptions, and event logging. It maintains three tables:
+    - exams: Current active exams
+    - exam_log: Historical record of all exam changes
+    - users: User subscription preferences by city
+
+Dependencies:
+    - sqlite3: SQLite database operations
+    - logging: Application logging
+    - datetime: Timestamp generation
+    - config: Centralized configuration (DB_FILE, city mappings)
 
 Functions:
-    - get_connection: Creates and returns a connection to the database.
-    - init_db: Initializes the database tables if they do not exist.
-    - get_current_exams: Fetches all currently active exams.
-    - add_exam: Adds a new exam and logs the event.
-    - remove_exam: Removes an exam and logs the event.
-    - add_user: Adds a new user to the users table.
-    - update_user_cities: Updates the cities a user is subscribed to.
-
+    - get_connection: Create database connection
+    - init_db: Initialize database schema
+    - get_current_exams: Retrieve all active exams
+    - add_exam: Insert new exam and log creation
+    - remove_exam: Delete exam and log removal
+    - add_user: Register new user
+    - update_user_cities: Update user's city subscriptions
+    - get_users_by_city: Query users subscribed to specific city
 """
 
 import sqlite3
 import logging
 from datetime import datetime
-
-DB_FILE = "exams_data.db"
+from config import DB_FILE, get_city_columns_map
 
 # ----------------------------
 # Utility Functions
 # ----------------------------
 
-# Creates and returns a connection to the database.
 def get_connection():
+    """
+    Create and return a connection to the SQLite database.
+    
+    Returns:
+        sqlite3.Connection: Active database connection object
+    
+    Note:
+        Connection should be used with context manager (with statement)
+        to ensure proper closure and transaction handling.
+    """
     return sqlite3.connect(DB_FILE)
 
 # ----------------------------
 # Database Initialization
 # ----------------------------
 
-# Initializes the database tables if they do not exist.
 def init_db():
+    """
+    Initialize database schema by creating all required tables.
+    
+    Creates three tables if they don't exist:
+        1. exams: Stores current active exams with unique constraint on (exam_date, city_id)
+        2. exam_log: Audit log of all exam additions and removals
+        3. users: User subscriptions with boolean columns for each city
+    
+    Table Structure:
+        exams: id, exam_date, city_id, first_seen
+        exam_log: log_id, exam_date, city_id, event_type, event_timestamp
+        users: user_id, tel_aviv, beer_sheva, jerusalem, haifa
+    
+    Note:
+        Safe to call multiple times - uses CREATE TABLE IF NOT EXISTS.
+    """
     with get_connection() as conn:
         # Table 1: Current state of exams
         conn.execute("""
@@ -76,22 +104,40 @@ def init_db():
     logging.info("Database initialized successfully.")
 
 # ----------------------------
-# Bot Management Functions
+# Exam Management Functions
 # ----------------------------
 
-# Fetches all currently active exams from the database.
-# Returns:
-#     set: A set of tuples (exam_date, city_id) representing active exams.
 def get_current_exams():
+    """
+    Retrieve all currently active exams from the database.
+    
+    Returns:
+        set: Set of tuples in format (exam_date, city_id)
+             Example: {('2025-11-04', 3), ('2025-11-05', 2)}
+    
+    Note:
+        Used by checker bot to compare API data with database state.
+    """
     with get_connection() as conn:
         rows = conn.execute("SELECT exam_date, city_id FROM exams").fetchall()
         return set(rows)
 
-# Adds a new exam to the current state table and logs the event.
-# Args:
-#     date (str): The date of the exam.
-#     city_id (int): The ID of the city where the exam is held.
 def add_exam(date: str, city_id: int):
+    """
+    Add a new exam to the database and log the creation event.
+    
+    Args:
+        date: Exam date in ISO format (YYYY-MM-DD)
+        city_id: NITE API city identifier (1=חיפה, 2=תל אביב, 3=ירושלים, 5=באר שבע)
+    
+    Side Effects:
+        - Inserts row into 'exams' table with current timestamp
+        - Logs 'CREATED' event to 'exam_log' table
+        - Commits transaction
+    
+    Note:
+        Should only be called after confirming exam doesn't exist in DB.
+    """
     now = datetime.now()
     with get_connection() as conn:
         # Add to the current state table
@@ -107,11 +153,23 @@ def add_exam(date: str, city_id: int):
         )
         conn.commit()
 
-# Removes an exam from the current state table and logs the event.
-# Args:
-#     date (str): The date of the exam.
-#     city_id (int): The ID of the city where the exam is held.
 def remove_exam(date: str, city_id: int):
+    """
+    Remove an exam from the database and log the deletion event.
+    
+    Args:
+        date: Exam date in ISO format (YYYY-MM-DD)
+        city_id: NITE API city identifier
+    
+    Side Effects:
+        - Deletes matching row from 'exams' table
+        - Logs 'DELETED' event to 'exam_log' table
+        - Commits transaction
+    
+    Note:
+        Called when exam no longer appears in API response (exam was cancelled/removed).
+        Does not send notifications to users - handled by caller.
+    """
     with get_connection() as conn:
         # Remove from the current state table
         conn.execute(
@@ -126,8 +184,26 @@ def remove_exam(date: str, city_id: int):
         )
         conn.commit()
 
-# Adds a new user to the users table.
+# ----------------------------
+# User Management Functions
+# ----------------------------
+
 def add_user(user_id: int):
+    """
+    Register a new user in the database.
+    
+    Args:
+        user_id: Telegram user ID (unique identifier)
+    
+    Side Effects:
+        - Inserts new row into 'users' table with all city subscriptions set to 0
+        - Uses INSERT OR IGNORE to prevent duplicate key errors
+        - Commits transaction
+    
+    Note:
+        Called when user first sends /start command to the bot.
+        If user already exists, operation is silently ignored.
+    """
     with get_connection() as conn:
         conn.execute(
             """
@@ -138,15 +214,27 @@ def add_user(user_id: int):
         )
         conn.commit()
 
-# Updates the cities a user is subscribed to.
 def update_user_cities(user_id: int, cities: list[str]):
-    city_columns = {
-        "תל אביב": "tel_aviv",
-        "באר שבע": "beer_sheva",
-        "ירושלים": "jerusalem",
-        "חיפה": "haifa"
-    }
+    """
+    Update user's city subscription preferences.
+    
+    Args:
+        user_id: Telegram user ID
+        cities: List of Hebrew city names user wants to subscribe to
+                Example: ['תל אביב', 'חיפה']
+    
+    Side Effects:
+        - Updates all city columns in 'users' table for given user_id
+        - Sets matching cities to 1 (subscribed), others to 0 (unsubscribed)
+        - Commits transaction
+    
+    Implementation:
+        Uses get_city_columns_map() to convert Hebrew names to DB column names.
+        Dynamically builds UPDATE query for all city columns.
+    """
+    city_columns = get_city_columns_map()
 
+    # Create dict: {db_column: 1 or 0} based on whether city is in user's selection
     updates = {column: (1 if city in cities else 0) for city, column in city_columns.items()}
 
     with get_connection() as conn:
@@ -159,3 +247,30 @@ def update_user_cities(user_id: int, cities: list[str]):
             (*updates.values(), user_id)
         )
         conn.commit()
+
+def get_users_by_city(city_column: str) -> list[int]:
+    """
+    Retrieve all user IDs subscribed to a specific city.
+    
+    Args:
+        city_column: Database column name for the city
+                    Valid values: 'tel_aviv', 'beer_sheva', 'jerusalem', 'haifa'
+    
+    Returns:
+        List of Telegram user IDs (integers) subscribed to the specified city
+        Example: [1152610979, 987654321]
+        Returns empty list if no users subscribed
+    
+    Usage:
+        Used by checker bot to determine which users to notify about new exams.
+        Column name should be obtained from get_city_column(city_id).
+    
+    Security Note:
+        Uses f-string for column name (not user input) - safe from SQL injection
+        as column names are validated through config.py.
+    """
+    with get_connection() as conn:
+        rows = conn.execute(
+            f"SELECT user_id FROM users WHERE {city_column} = 1"
+        ).fetchall()
+        return [row[0] for row in rows]

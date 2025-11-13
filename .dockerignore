@@ -1,0 +1,55 @@
+# Python cache and bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Environment files (sensitive data)
+.env
+.env.local
+
+# Database files (will be in volume)
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation and notes
+README.md
+IMPROVEMENTS.md
+*.md
+
+# Test files
+TEST/
+tests/
+test_*.py
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Docker files (no need inside image)
+Dockerfile
+docker-compose.yml
+.dockerignore
