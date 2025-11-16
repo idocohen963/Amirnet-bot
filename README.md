@@ -5,7 +5,7 @@
 ## 📋 תיאור
 
 הפרויקט מורכב משני רכיבים עיקריים:
-1. **בוט משתמשים** (`clients.py`) - מנהל רשימת משתמשים והעדפות ערים
+1. **בוט משתמשים** (`telegram_bot.py`) - מנהל רשימת משתמשים והעדפות ערים
 2. **בוט מעקב** (`nite_check.py`) - סורק שינויים במערכת ניטע ושולח התראות
 
 ## 🏗️ מבנה הפרויקט
@@ -15,8 +15,10 @@ nite_checker/
 ├── main.py            # ⭐ נקודת כניסה - מריץ הכל
 ├── config.py          # קונפיגורציה מרכזית
 ├── db.py              # שכבת מסד נתונים
-├── clients.py         # בוט Telegram לניהול משתמשים
+├── telegram_bot.py    # בוט Telegram לניהול משתמשים
 ├── nite_check.py      # בוט סריקת שינויים
+├── nite_api.py        # לקוח API של NITE - משיכת מידע
+├── notifications.py   # מודול שליחת התראות Telegram
 ├── requirements.txt   # תלויות Python
 ├── .env               # משתני סביבה (לא בגיט!)
 └── exams_data.db      # מסד נתונים SQLite
@@ -87,7 +89,7 @@ python3 main.py
 
 **טרמינל 1 - בוט משתמשים:**
 ```bash
-python3 clients.py
+python3 telegram_bot.py
 ```
 
 **טרמינל 2 - בוט סריקה:**
@@ -159,6 +161,12 @@ sqlite3 exams_data.db "SELECT * FROM exam_log ORDER BY event_timestamp DESC LIMI
 └────────┬────────┘
          │
          ▼
+┌─────────────────┐
+│  nite_api.py    │
+│  (Fetches data) │
+└────────┬────────┘
+         │
+         ▼
 ┌─────────────────┐     ┌──────────────┐
 │  nite_check.py  │────▶│  exams DB    │
 │  (Compares)     │     │  (State)     │
@@ -177,10 +185,23 @@ sqlite3 exams_data.db "SELECT * FROM exam_log ORDER BY event_timestamp DESC LIMI
             │
             ▼
    ┌─────────────────┐
+   │ notifications.py│
    │ Send Telegram   │
    │ notifications   │
    └─────────────────┘
 ```
+
+## 🏛️ ארכיטקטורה
+
+הפרויקט מחולק למודולים עם אחריות ברורה:
+
+- **`main.py`** - נקודת כניסה, מריץ שני תהליכים במקביל
+- **`telegram_bot.py`** - בוט Telegram לניהול משתמשים והעדפות
+- **`nite_check.py`** - לוגיקת ניטור והשוואה בין API למסד נתונים
+- **`nite_api.py`** - לקוח API של NITE, אחראי על התחברות ומשיכת מידע
+- **`notifications.py`** - מודול שליחת התראות Telegram
+- **`db.py`** - שכבת מסד נתונים, כל הפעולות על SQLite
+- **`config.py`** - הגדרות מרכזיות, מיפוי ערים וקונפיגורציה
 
 ## � פריסה בענן (Cloud Deployment)
 

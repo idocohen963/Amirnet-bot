@@ -4,7 +4,7 @@ Main Entry Point - NITE Exam Checker Bot System
 
 This script orchestrates the entire bot system by running two independent
 processes in parallel:
-    1. Client Bot (clients.py) - Handles user registration and preferences
+    1. Telegram Bot (telegram_bot.py) - Handles user registration and preferences
     2. Checker Bot (nite_check.py) - Monitors API and sends notifications
 
 Architecture:
@@ -43,6 +43,8 @@ load_dotenv()
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] [%(processName)s] %(message)s"
+    filename="project.log",  # Creates log file
+    filemode="a"
 )
 logger = logging.getLogger(__name__)
 
@@ -59,7 +61,7 @@ def run_client_bot():
         Exception details logged with full traceback.
     """
     try:
-        from clients import main as client_main
+        from telegram_bot import main as client_main
         logger.info("Starting client bot...")
         client_main()  # Blocks until terminated
     except Exception as e:

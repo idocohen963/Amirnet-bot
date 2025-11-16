@@ -1,5 +1,5 @@
 """
-Telegram Client Bot - User Registration and Subscription Management
+Telegram Bot - User Registration and Subscription Management
 
 This bot handles user interactions for subscribing to NITE exam notifications.
 Users can select which cities they want to receive alerts for through an
@@ -218,7 +218,7 @@ def _toggle_city(city: str, selected_cities: set[str]) -> None:
 
 def main() -> None:
     """
-    Initialize and run the Telegram client bot.
+    Initialize and run the Telegram bot.
     
     Setup Process:
         1. Initialize database schema (create tables if needed)
@@ -261,3 +261,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
