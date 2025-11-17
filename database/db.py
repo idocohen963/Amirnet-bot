@@ -2,10 +2,11 @@
 Database layer for NITE exam checker bot.
 
 This module handles all SQLite database operations for managing exam schedules,
-user subscriptions, and event logging. It maintains three tables:
+user subscriptions, and event logging. It maintains four tables:
     - exams: Current active exams
     - exam_log: Historical record of all exam changes
-    - users: User subscription preferences by city
+    - users: Telegram user subscription preferences by city
+    - whatsapp_users: WhatsApp user subscription preferences by city
 
 Dependencies:
     - sqlite3: SQLite database operations
@@ -19,9 +20,12 @@ Functions:
     - get_current_exams: Retrieve all active exams
     - add_exam: Insert new exam and log creation
     - remove_exam: Delete exam and log removal
-    - add_user: Register new user
-    - update_user_cities: Update user's city subscriptions
-    - get_users_by_city: Query users subscribed to specific city
+    - add_user: Register new Telegram user
+    - update_user_cities: Update Telegram user's city subscriptions
+    - get_users_by_city: Query Telegram users subscribed to specific city
+    - add_whatsapp_user: Register new WhatsApp user
+    - update_whatsapp_user_cities: Update WhatsApp user's city subscriptions
+    - get_whatsapp_users_by_city: Query WhatsApp users subscribed to specific city
 """
 
 import sqlite3
@@ -54,15 +58,17 @@ def init_db():
     """
     Initialize database schema by creating all required tables.
     
-    Creates three tables if they don't exist:
+    Creates four tables if they don't exist:
         1. exams: Stores current active exams with unique constraint on (exam_date, city_id)
         2. exam_log: Audit log of all exam additions and removals
-        3. users: User subscriptions with boolean columns for each city
+        3. users: Telegram user subscriptions with boolean columns for each city
+        4. whatsapp_users: WhatsApp user subscriptions with boolean columns for each city
     
     Table Structure:
         exams: id, exam_date, city_id, first_seen
         exam_log: log_id, exam_date, city_id, event_type, event_timestamp
-        users: user_id, tel_aviv, beer_sheva, jerusalem, haifa
+        users: user_id (INTEGER), tel_aviv, beer_sheva, jerusalem, haifa
+        whatsapp_users: user_id (TEXT), tel_aviv, beer_sheva, jerusalem, haifa
     
     Note:
         Safe to call multiple times - uses CREATE TABLE IF NOT EXISTS.
@@ -90,10 +96,21 @@ def init_db():
             )
         """)
 
-        # Table 3: users
+        # Table 3: users (Telegram)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 user_id INTEGER PRIMARY KEY,
+                tel_aviv INTEGER DEFAULT 0,
+                beer_sheva INTEGER DEFAULT 0,
+                jerusalem INTEGER DEFAULT 0,
+                haifa INTEGER DEFAULT 0
+            )
+        """)
+
+        # Table 4: whatsapp_users (WhatsApp)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS whatsapp_users (
+                user_id TEXT PRIMARY KEY,
                 tel_aviv INTEGER DEFAULT 0,
                 beer_sheva INTEGER DEFAULT 0,
                 jerusalem INTEGER DEFAULT 0,
@@ -272,5 +289,96 @@ def get_users_by_city(city_column: str) -> list[int]:
     with get_connection() as conn:
         rows = conn.execute(
             f"SELECT user_id FROM users WHERE {city_column} = 1"
+        ).fetchall()
+        return [row[0] for row in rows]
+
+# ----------------------------
+# WhatsApp User Management Functions
+# ----------------------------
+
+def add_whatsapp_user(user_id: str):
+    """
+    Register a new WhatsApp user in the database.
+    
+    Args:
+        user_id: WhatsApp user ID (string identifier)
+    
+    Side Effects:
+        - Inserts new row into 'whatsapp_users' table with all city subscriptions set to 0
+        - Uses INSERT OR IGNORE to prevent duplicate key errors
+        - Commits transaction
+    
+    Note:
+        Called when user first sends /start command to the WhatsApp bot.
+        If user already exists, operation is silently ignored.
+    """
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO whatsapp_users (user_id)
+            VALUES (?)
+            """,
+            (user_id,)
+        )
+        conn.commit()
+
+def update_whatsapp_user_cities(user_id: str, cities: list[str]):
+    """
+    Update WhatsApp user's city subscription preferences.
+    
+    Args:
+        user_id: WhatsApp user ID (string)
+        cities: List of Hebrew city names user wants to subscribe to
+                Example: ['תל אביב', 'חיפה']
+    
+    Side Effects:
+        - Updates all city columns in 'whatsapp_users' table for given user_id
+        - Sets matching cities to 1 (subscribed), others to 0 (unsubscribed)
+        - Commits transaction
+    
+    Implementation:
+        Uses get_city_columns_map() to convert Hebrew names to DB column names.
+        Dynamically builds UPDATE query for all city columns.
+    """
+    city_columns = get_city_columns_map()
+
+    # Create dict: {db_column: 1 or 0} based on whether city is in user's selection
+    updates = {column: (1 if city in cities else 0) for city, column in city_columns.items()}
+
+    with get_connection() as conn:
+        conn.execute(
+            f"""
+            UPDATE whatsapp_users
+            SET {', '.join(f'{col} = ?' for col in updates.keys())}
+            WHERE user_id = ?
+            """,
+            (*updates.values(), user_id)
+        )
+        conn.commit()
+
+def get_whatsapp_users_by_city(city_column: str) -> list[str]:
+    """
+    Retrieve all WhatsApp user IDs subscribed to a specific city.
+    
+    Args:
+        city_column: Database column name for the city
+                    Valid values: 'tel_aviv', 'beer_sheva', 'jerusalem', 'haifa'
+    
+    Returns:
+        List of WhatsApp user IDs (strings) subscribed to the specified city
+        Example: ['whatsapp_user_123', 'whatsapp_user_456']
+        Returns empty list if no users subscribed
+    
+    Usage:
+        Used by checker bot to determine which WhatsApp users to notify about new exams.
+        Column name should be obtained from get_city_column(city_id).
+    
+    Security Note:
+        Uses f-string for column name (not user input) - safe from SQL injection
+        as column names are validated through config.py.
+    """
+    with get_connection() as conn:
+        rows = conn.execute(
+            f"SELECT user_id FROM whatsapp_users WHERE {city_column} = 1"
         ).fetchall()
         return [row[0] for row in rows]

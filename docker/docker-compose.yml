@@ -3,19 +3,19 @@ version: '3.8'
 services:
   nite-checker:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: docker/Dockerfile
     container_name: nite_checker_bot
     restart: unless-stopped
     
     # Environment variables (load from .env file)
     env_file:
-      - .env
+      - ../.env
     
     # Persistent volume for SQLite database
     volumes:
-      - ./data:/app/data
-      - ./exams_data.db:/app/exams_data.db
+      - ../data:/app/data
+      - ../exams_data.db:/app/exams_data.db
     
     # Logging configuration
     logging:

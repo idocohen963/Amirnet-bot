@@ -1,107 +1,130 @@
 # 🎓 NITE Exam Checker Bot
 
-בוט טלגרם לניטור מבחני ניטע ושליחת התראות למשתמשים רשומים.
+A Telegram bot for monitoring NITE exams and sending notifications to registered users.
 
-## 📋 תיאור
+## 📋 Description
 
-הפרויקט מורכב משני רכיבים עיקריים:
-1. **בוט משתמשים** (`telegram_bot.py`) - מנהל רשימת משתמשים והעדפות ערים
-2. **בוט מעקב** (`nite_check.py`) - סורק שינויים במערכת ניטע ושולח התראות
+The project consists of two main components running in parallel:
+1. **Client Bot** (`platforms/telegram/bot.py`) - Manages user registrations and city preferences through an inline keyboard interface
+2. **Checker Bot** (`nite_check.py`) - Polls NITE system for changes every 2-4 minutes and sends notifications
 
-## 🏗️ מבנה הפרויקט
+Both bots run in separate processes via `main.py` using Python's `multiprocessing`.
+
+## 🏗️ Project Structure
 
 ```
 nite_checker/
-├── main.py            # ⭐ נקודת כניסה - מריץ הכל
-├── config.py          # קונפיגורציה מרכזית
-├── db.py              # שכבת מסד נתונים
-├── telegram_bot.py    # בוט Telegram לניהול משתמשים
-├── nite_check.py      # בוט סריקת שינויים
-├── nite_api.py        # לקוח API של NITE - משיכת מידע
-├── notifications.py   # מודול שליחת התראות Telegram
-├── requirements.txt   # תלויות Python
-├── .env               # משתני סביבה (לא בגיט!)
-└── exams_data.db      # מסד נתונים SQLite
+├── main.py                    # ⭐ Entry point - runs both bots in parallel
+├── config.py                  # Central configuration - city mappings, URLs, constants
+├── nite_check.py              # Change scanner bot - main monitoring loop
+├── nite_api.py                # NITE API client - connection and data retrieval
+├── notifications.py           # Message sending layer (Telegram + WhatsApp placeholder)
+├── requirements.txt           # Python dependencies
+├── .env                       # Environment variables (not in git!)
+├── .gitignore                 # Files to ignore in git
+├── .dockerignore              # Files to ignore in Docker build
+├── exams_data.db              # SQLite database (created automatically)
+│
+│
+├── database/
+│   ├── __init__.py
+│   └── db.py                  # Database layer - all SQLite operations
+│
+├── platforms/
+│   ├── __init__.py
+│   ├── telegram/
+│   │   ├── __init__.py
+│   │   └── bot.py             # Telegram bot for user management
+│   └── whatsapp/
+│       └── __init__.py        # WhatsApp placeholder (future)
+│
+└── docker/
+    ├── Dockerfile             # Docker image definition
+    ├── docker-compose.yml     # Docker Compose configuration
+    └── DOCKER_DEPLOY.md       # Detailed deployment guide
 ```
 
-## 🔧 התקנה
+## 🔧 Installation
 
-1. **שכפל את הפרויקט:**
+### 1. Clone the project
 ```bash
 git clone <repository-url>
 cd nite_checker
 ```
 
-2. **צור סביבה וירטואלית:**
+### 2. Create virtual environment
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate  # Linux/Mac
-# או
+# or
 .venv\Scripts\activate  # Windows
 ```
 
-3. **התקן תלויות:**
+### 3. Install dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-4. **הגדר משתני סביבה:**
-צור קובץ `.env` עם הטוקנים:
-```
+### 4. Configure environment variables
+Create a `.env` file in the root directory:
+```bash
 TELEGRAM_TOKEN=your_bot_token_here
 ```
 
-## 🚀 הרצה
+**Getting a bot token:**
+1. Open a chat with [@BotFather](https://t.me/BotFather) in Telegram
+2. Send `/newbot` and follow the instructions
+3. Copy the received token to the `.env` file
 
-### 🐳 הרצה עם Docker (מומלץ לפרודקשן):
+## 🚀 Running
 
-**הרצה מהירה:**
+### 🐍 Direct Python execution (recommended for development)
+
 ```bash
-docker-compose up -d
+# Make sure virtual environment is active
+source .venv/bin/activate
+
+# Run both bots
+python3 main.py
 ```
 
-**בדיקת סטטוס:**
+**Stop:** `Ctrl+C`
+
+### 🐳 Running with Docker (recommended for production)
+
+**Quick start:**
 ```bash
+cd docker
+docker-compose up -d --build
+```
+
+**Check status:**
+```bash
+cd docker
 docker-compose ps
 docker-compose logs -f
 ```
 
-**עצירת הבוט:**
+**Stop the bot:**
 ```bash
+cd docker
 docker-compose down
 ```
 
-**בנייה מחדש אחרי שינויים:**
+**Update after changes:**
 ```bash
+cd docker
+git pull
 docker-compose up -d --build
 ```
 
-### 🐍 הרצה ישירה עם Python:
+**For full Docker and cloud deployment details:** see `docker/DOCKER_DEPLOY.md`
 
-**דרך מומלצת - הרצה אחת פשוטה:**
-```bash
-python3 main.py
-```
-זה מריץ את **שני הבוטים במקביל** (client + checker).
+## 🗺️ Central Configuration
 
-**דרך חלופית - הרצה נפרדת:**
-אם אתה רוצה שליטה מלאה, הרץ כל בוט בטרמינל נפרד:
+### **City Mapping (`config.py`)**
 
-**טרמינל 1 - בוט משתמשים:**
-```bash
-python3 telegram_bot.py
-```
-
-**טרמינל 2 - בוט סריקה:**
-```bash
-python3 nite_check.py
-```
-
-## 🗺️ קונפיגורציה מרכזית
-
-### **מיפוי ערים (`config.py`)**
-
-כל המידע על ערים מרוכז בקובץ `config.py`:
+All city information is centralized in `config.py`:
 
 ```python
 CITIES = {
@@ -112,139 +135,195 @@ CITIES = {
 }
 ```
 
-**המפתחות (1, 2, 3, 5) הם ה-city_id מה-API של ניטע!**
+**The keys (1, 2, 3, 5) are the city_id values from the NITE API!**
 
-### פונקציות עזר:
+### Helper functions in `config.py`:
 
-- `get_city_name(city_id)` - מקבל שם עיר לפי ID
-- `get_city_column(city_id)` - מקבל שם עמודה ב-DB לפי ID
-- `get_city_options()` - מחזיר רשימה ממוינת של ערים לבוט
-- `get_city_columns_map()` - מיפוי שמות ערים לעמודות DB
+- `get_city_name(city_id)` - Get city name by ID
+- `get_city_column(city_id)` - Get DB column name by ID
+- `get_city_options()` - Returns sorted list of cities for bot
+- `get_city_columns_map()` - Mapping of city names to DB columns
 
 
-## 💾 מסד נתונים
+## 💾 Database
 
-### טבלאות:
+### Tables (`database/db.py`):
 
-1. **exams** - מבחנים פעילים נוכחיים
-2. **exam_log** - היסטוריית שינויים (CREATED/DELETED)
-3. **users** - משתמשים והעדפות ערים
+1. **exams** - Current active exams
+   - `id`, `exam_date`, `city_id`, `first_seen`
+   - UNIQUE constraint on `(exam_date, city_id)`
 
-### דוגמאות שאילתות:
+2. **exam_log** - Change history
+   - `log_id`, `exam_date`, `city_id`, `event_type` (CREATED/DELETED), `event_timestamp`
+
+3. **users** - Telegram users and city preferences
+   - `user_id` (INTEGER), `tel_aviv`, `beer_sheva`, `jerusalem`, `haifa`
+
+4. **whatsapp_users** - WhatsApp users and city preferences (future)
+   - `user_id` (TEXT), `tel_aviv`, `beer_sheva`, `jerusalem`, `haifa`
+
+### Query examples:
 
 ```bash
-# הצג את כל המשתמשים
+# Show all users
 sqlite3 exams_data.db "SELECT * FROM users;"
 
-# הצג משתמשים שרשומים לתל אביב
+# Show users registered for Tel Aviv
 sqlite3 exams_data.db "SELECT user_id FROM users WHERE tel_aviv = 1;"
 
-# הצג מבחנים פעילים
+# Show active exams
 sqlite3 exams_data.db "SELECT * FROM exams ORDER BY exam_date;"
 
-# הצג היסטוריית שינויים
-sqlite3 exams_data.db "SELECT * FROM exam_log ORDER BY event_timestamp DESC LIMIT 10;"
-```
-
-## 🔒 אבטחה
-
-- **לעולם אל תעלה קובץ `.env` לגיט!**
-- הקובץ `.gitignore` מוגדר לחסום אותו
-- אם טוקן נחשף, בטל אותו מיד דרך BotFather
-
-## 📊 תהליך הבוט
+# Show change history (last 20)
+sqlite3 exams_data.db "SELECT * FROM exam_log ORDER BY event_timestamp DESC LIMIT 20;"
 
 ```
-┌─────────────────┐
-│  NITE API       │
-│  (Every 2-4min) │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  nite_api.py    │
-│  (Fetches data) │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐     ┌──────────────┐
-│  nite_check.py  │────▶│  exams DB    │
-│  (Compares)     │     │  (State)     │
-└────────┬────────┘     └──────────────┘
-         │
-         ▼
-   ┌─────────────┐
-   │  New exam?  │
-   └──────┬──────┘
-          │ Yes
-          ▼
-   ┌─────────────────┐
-   │ Get users by    │
-   │ city from DB    │
-   └────────┬────────┘
-            │
-            ▼
-   ┌─────────────────┐
-   │ notifications.py│
-   │ Send Telegram   │
-   │ notifications   │
-   └─────────────────┘
+
+## 🔐 Security
+
+- **Never upload `.env` file to git!**
+- The `.gitignore` file is configured to block it
+- If a token is exposed, revoke it immediately via [@BotFather](https://t.me/BotFather)
+- The `.dockerignore` file prevents copying sensitive files to Docker image
+
+## 📊 Bot Workflow
+
+```
+┌─────────────────────┐
+│  NITE API           │
+│  (every 2-4 min)    │
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐     ┌──────────────────┐
+│  nite_check.py      │────▶│  exams DB        │
+│  (compares)         │     │  (current state) │
+└──────────┬──────────┘     └──────────────────┘
+           │
+           ▼
+    ┌─────────────┐
+    │  New exam?  │
+    └──────┬──────┘
+           │ yes
+           ▼
+    ┌─────────────────────┐
+    │ Query users by      │
+    │ city from DB        │
+    └──────────┬──────────┘
+               │
+               ▼
+    ┌─────────────────────┐
+    │ Send notifications  │
+    │ (Telegram/WhatsApp) │
+    └─────────────────────┘
 ```
 
-## 🏛️ ארכיטקטורה
+## 🌐 Cloud Deployment
 
-הפרויקט מחולק למודולים עם אחריות ברורה:
+### Platform Support:
 
-- **`main.py`** - נקודת כניסה, מריץ שני תהליכים במקביל
-- **`telegram_bot.py`** - בוט Telegram לניהול משתמשים והעדפות
-- **`nite_check.py`** - לוגיקת ניטור והשוואה בין API למסד נתונים
-- **`nite_api.py`** - לקוח API של NITE, אחראי על התחברות ומשיכת מידע
-- **`notifications.py`** - מודול שליחת התראות Telegram
-- **`db.py`** - שכבת מסד נתונים, כל הפעולות על SQLite
-- **`config.py`** - הגדרות מרכזיות, מיפוי ערים וקונפיגורציה
+- **AWS** (ECS, EC2, Lightsail)
+- **Google Cloud** (Cloud Run, Compute Engine)
+- **Azure** (Container Instances, VMs)
+- **DigitalOcean** (Droplets, App Platform)
 
-## � פריסה בענן (Cloud Deployment)
+**For detailed guide:** see `docker/DOCKER_DEPLOY.md`
 
-**AWS (ECS/EC2):**
+## 🛠️ Troubleshooting
+
+### Bot not responding?
+
+**Python:**
 ```bash
-# Build and push to ECR
-docker build -t nite-checker .
-docker tag nite-checker:latest <aws-account>.dkr.ecr.region.amazonaws.com/nite-checker:latest
-docker push <aws-account>.dkr.ecr.region.amazonaws.com/nite-checker:latest
+# Verify the token is valid
+cat .env | grep TELEGRAM_TOKEN
+
+# Verify the bot is running
+ps aux | grep python3
+
+# Check logs
+tail -f project.log
 ```
 
-### ⚠️ חשוב לפריסה בענן:
-- וודא שקובץ `.env` קיים עם הטוקן
-- השתמש ב-volumes לשמירת מסד הנתונים
-- הגדר restart policy ל-`always` או `unless-stopped`
-- הגדר monitoring ו-logging
+**Docker:**
+```bash
+cd docker
 
-## �🛠️ פתרון בעיות
+# Check container status
+docker-compose ps
 
-### הבוט לא מגיב?
-- **Docker**: `docker-compose logs -f` לבדיקת לוגים
-- **Python**: בדוק שהטוקן ב-`.env` תקין
-- ודא שהבוט רץ: `docker ps` או `ps aux | grep python`
+# Tail logs in real time
+docker-compose logs -f
 
-### לא מגיעות התראות?
-- בדוק שיש משתמשים רשומים: `sqlite3 exams_data.db "SELECT * FROM users;"`
-- **Docker**: `docker exec -it nite_checker_bot python3 -c "from db import get_connection; print(list(get_connection().execute('SELECT * FROM users')))"`
-- בדוק ש-`nite_check.py` רץ ברקע
+# Inspect processes in container
+docker exec -it nite_checker_bot ps aux
+```
 
-### שגיאת import?
-- ודא שכל הקבצים באותו תיקיה
-- **Python**: `pip install -r requirements.txt`
-- **Docker**: rebuild the image: `docker-compose up -d --build`
+### Not receiving notifications?
 
-### בעיות עם מסד הנתונים?
-- ודא שהתיקיה `data/` קיימת
-- בדוק הרשאות: `chmod 777 data/`
-- **Docker**: volume נוצר אוטומטית, בדוק עם `docker volume ls`
+```bash
+# Ensure there are registered users
+sqlite3 exams_data.db "SELECT * FROM users;"
 
-## 📝 רישיון
+# Check via Docker
+docker exec -it nite_checker_bot python3 -c "from database.db import get_connection; print(list(get_connection().execute('SELECT * FROM users')))"
 
-MIT License - השתמש בחופשיות!
+# Verify the Checker bot is running
+ps aux | grep nite_check  # or
+docker-compose logs -f | grep CheckerBot
+```
 
-## 👨‍💻 תמיכה
+### Import error?
 
-לבעיות או שאלות, פתח issue בגיטהאב.
+**Python:**
+```bash
+# Ensure dependencies are installed
+pip install -r requirements.txt
+
+# Ensure the virtual environment is active
+which python3  # should point to .venv
+```
+
+**Docker:**
+```bash
+cd docker
+docker-compose up -d --build  # rebuild the image
+```
+
+### Database issues?
+
+```bash
+# Check that the file exists
+ls -lh exams_data.db
+
+# Check permissions
+chmod 666 exams_data.db
+
+# Reinitialize the database (caution — deletes data!)
+rm exams_data.db
+python3 -c "from database.db import init_db; init_db()"
+```
+
+**In Docker:**
+```bash
+cd docker
+
+# Check volume
+docker volume ls | grep nite
+
+# Remove volume and reinitialize (caution!)
+docker-compose down -v
+docker-compose up -d --build
+```
+
+
+## 📝 License
+
+MIT License — use freely!
+
+## 👨‍💻 Support
+
+For issues or questions, open a GitHub issue or contact the project maintainer.
+
+---
+

@@ -1,5 +1,0 @@
-chance the .db file name to data.db and chek noting hurt
-consider optinizion of sepering the deta prossing from "def run_checker():" to new function
-chance the clients.py file name to telegram_clients.py and chek noting hurt
-translte readme to english
-adding conection with whatsup and mail for clients

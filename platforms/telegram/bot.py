@@ -29,7 +29,17 @@ from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import (
     Application, CommandHandler, ConversationHandler, CallbackQueryHandler, ContextTypes
 )
-from db import init_db, add_user, update_user_cities
+
+# Import from parent directory (project root)
+import sys
+from pathlib import Path
+
+# Add project root to Python path for imports
+project_root = Path(__file__).parent.parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+from database.db import init_db, add_user, update_user_cities
 from config import get_city_options
 
 

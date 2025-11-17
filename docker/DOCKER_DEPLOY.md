@@ -1,11 +1,15 @@
 # 🚀 מדריך פריסה מהירה ל-Docker
 
+**הערה:** כל הפקודות מורצות מתוך תיקיית `docker/`
+
 ## שלבים:
 
 ### 1️⃣ הכן את הסביבה
 ```bash
-# וודא שיש לך קובץ .env עם הטוקן
-echo "TELEGRAM_TOKEN=your_bot_token_here" > .env
+# וודא שיש לך קובץ .env בתיקיית השורש עם הטוקן
+cd ..
+echo "TELEGRAM_TOKEN_TEST=your_bot_token_here" > .env
+cd docker
 ```
 
 ### 2️⃣ בנה את הקונטיינר
@@ -14,7 +18,8 @@ echo "TELEGRAM_TOKEN=your_bot_token_here" > .env
 docker-compose up -d --build
 
 # אופציה 2: עם Docker ישיר
-docker build -t nite-checker .
+cd ..
+docker build -t nite-checker -f docker/Dockerfile .
 docker run -d --name nite_bot --env-file .env -v $(pwd)/exams_data.db:/app/exams_data.db nite-checker
 ```
 
@@ -86,7 +91,7 @@ cd nite_checker
 
 # צור .env
 nano .env
-# הוסף: TELEGRAM_TOKEN=your_token
+# הוסף: TELEGRAM_TOKEN_TEST=your_token
 
 # הרץ
 docker-compose up -d

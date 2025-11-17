@@ -2,13 +2,14 @@
 NITE Exam Checker Bot - Continuous Monitoring and Notification Service
 
 This script continuously monitors the NITE (National Institute for Testing and Evaluation)
-API for exam schedule changes and sends real-time Telegram notifications to subscribed users.
+API for exam schedule changes and sends real-time notifications to subscribed users
+via multiple platforms (Telegram, WhatsApp).
 
 Architecture:
     1. Fetch exam data from NITE API every 2-4 minutes
     2. Compare with current database state
     3. Detect new exams (additions) and removed exams (cancellations)
-    4. Send Telegram notifications to users subscribed to affected cities
+    4. Send notifications to users subscribed to affected cities (Telegram and WhatsApp)
     5. Update database to reflect current state
     6. Log all changes to exam_log table
 
@@ -23,7 +24,7 @@ Dependencies:
     - db: Database operations
     - config: Centralized configuration
     - nite_api: NITE API client for fetching exam data
-    - notifications: Telegram notification service
+    - notifications: Notification service (Telegram and WhatsApp)
 
 Usage:
     python3 nite_check.py  # Run standalone
@@ -33,12 +34,13 @@ Usage:
 import time
 import random
 import logging
-from db import (
+from database.db import (
     init_db,
     get_current_exams,
     add_exam,
     remove_exam,
-    get_users_by_city
+    get_users_by_city,
+    get_whatsapp_users_by_city
 )
 from config import (
     get_city_name,
@@ -47,7 +49,7 @@ from config import (
     CHECK_INTERVAL_MAX
 )
 from nite_api import fetch_exam_dates
-from notifications import send_telegram_message
+from notifications import send_telegram_message, send_whatsapp_message
 
 # Configure logging for monitoring operations
 logging.basicConfig(
@@ -78,8 +80,8 @@ def run_checker():
     
     New Exam Handling:
         - Get city name and DB column from config
-        - Query users subscribed to that city
-        - Send Telegram message to each relevent user
+        - Query Telegram and WhatsApp users subscribed to that city
+        - Send notifications to each relevant user (Telegram and WhatsApp)
         - Add exam to database and log creation event
     
     Removed Exam Handling:
@@ -133,16 +135,24 @@ def run_checker():
                         logger.warning(f"City column not found for city: {city_name}")
                         continue
 
-                    # Get users subscribed to this city
-                    user_ids = get_users_by_city(city_column)
-                    if not user_ids:
+                    # Get users subscribed to this city (Telegram)
+                    telegram_user_ids = get_users_by_city(city_column)
+                    
+                    # Get WhatsApp users subscribed to this city
+                    whatsapp_user_ids = get_whatsapp_users_by_city(city_column)
+                    
+                    if not telegram_user_ids and not whatsapp_user_ids:
                         logger.info(f"No users subscribed to city: {city_name}")
                         continue
 
-                    # Send notifications to users
+                    # Send notifications to Telegram users
                     msg = f"📢 מבחן חדש ב-{city_name}, בתאריך {date}"
-                    for user_id in user_ids:
+                    for user_id in telegram_user_ids:
                         send_telegram_message(user_id, msg)
+                    
+                    # Send notifications to WhatsApp users
+                    for user_id in whatsapp_user_ids:
+                        send_whatsapp_message(user_id, msg)
 
                     # Add the exam to the database
                     add_exam(date, city_id)
