@@ -1,4 +1,4 @@
-# 🎓 NITE Exam Checker Bot
+# 🎓 Amirnet Exam Checker Bot
 
 A Telegram bot for monitoring NITE exams and sending notifications to registered users.
 
